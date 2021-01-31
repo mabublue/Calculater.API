@@ -1,0 +1,278 @@
+{
+    "Resources": {
+        "VPCFARGATE": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/16",
+                "InstanceTenancy": "default",
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames" : "true",
+                "Tags" : [ {"Key" : "Name", "Value" : "VPC-Fargate"} ]
+            }
+        },
+        "INTGATEWAY": {
+            "Type": "AWS::EC2::InternetGateway"
+        },
+        "ATTACHIG": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "DependsOn": ["VPCFARGATE", "INTGATEWAY"],
+            "Properties": {
+                "InternetGatewayId" : {"Ref": "INTGATEWAY"},
+                "VpcId" : {"Ref": "VPCFARGATE"}
+            }
+        },
+        "ROUTETABLE": {
+            "Type" : "AWS::EC2::RouteTable",
+            "DependsOn": ["VPCFARGATE"],
+            "Properties" : {
+                "VpcId" : {"Ref": "VPCFARGATE"}
+            }
+        },
+        "ROUTE": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": ["VPCFARGATE", "INTGATEWAY", "ROUTETABLE"],
+            "Properties": {
+                "RouteTableId": {"Ref": "ROUTETABLE"},
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {"Ref": "INTGATEWAY"}
+            }
+        },
+        "SUBNETFARGATE1": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": ["VPCFARGATE"],
+            "Properties": {
+                "AvailabilityZone" : "ap-southeast-2a",
+                "CidrBlock" : "10.0.10.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "VpcId" : {"Ref": "VPCFARGATE"},
+                "Tags" : [ {"Key" : "Name", "Value" : "Subnet-Fargate-1"} ]
+            }
+        },
+        "SUBNETFARGATE2": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": ["VPCFARGATE"],
+            "Properties": {
+                "AvailabilityZone" : "ap-southeast-2b",
+                "CidrBlock" : "10.0.20.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "VpcId" : {"Ref": "VPCFARGATE"},
+                "Tags" : [ {"Key" : "Name", "Value" : "Subnet-Fargate-2"} ]
+            }
+        },
+        "SUBNETROUTE1": {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": ["SUBNETFARGATE1", "ROUTETABLE"],
+            "Properties" : {
+                "RouteTableId" : {"Ref": "ROUTETABLE"},
+                "SubnetId" : {"Ref": "SUBNETFARGATE1"}
+            }
+        },
+        "SUBNETROUTE2": {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": ["SUBNETFARGATE2", "ROUTETABLE"],
+            "Properties" : {
+                "RouteTableId" : {"Ref": "ROUTETABLE"},
+                "SubnetId" : {"Ref": "SUBNETFARGATE2"}
+            }
+        },
+        "SGFARGATE": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DependsOn": ["VPCFARGATE"],
+            "Properties": {
+                "GroupDescription" : "Fargate Security Group",
+                "GroupName" : "Fargate-SG",
+                "SecurityGroupIngress" : [
+                    {
+                        "CidrIp" : "0.0.0.0/0",
+                        "Description" : "Allow HTTP traffic on port 80",
+                        "FromPort" : 80,
+                        "IpProtocol" : "tcp",
+                        "ToPort" : 80
+                    },{
+                        "CidrIp": "0.0.0.0/0",
+                        "Description": "Allow HTTPS traffic on port 443",
+                        "FromPort": 443,
+                        "IpProtocol": "tcp",
+                        "ToPort": 443
+                    }
+                ],
+                "VpcId" : {"Ref": "VPCFARGATE"}
+            }
+        },
+        "FARGATECLUSTER": {
+            "Type": "AWS::ECS::Cluster",
+            "Properties": {
+                "ClusterName": "Cluster-CF"
+            }
+        },
+        "ECSTASK": {
+            "Type": "AWS::ECS::TaskDefinition",
+            "Properties": {
+                "ContainerDefinitions": [
+                    {
+                        "Name": "calculator-api",
+                        "Image": "322767926738.dkr.ecr.ap-southeast-2.amazonaws.com/calculatorapi",
+                        "PortMappings": [
+                            {"ContainerPort": 80, "HostPort": 80, "Protocol": "tcp"},
+                            {"ContainerPort": 443, "HostPort": 443, "Protocol": "tcp"}
+                        ],
+                        "LogConfiguration": {
+                            "LogDriver": "awslogs",
+                            "Options": {
+                                "awslogs-group": "/ecs/CalculatorApi/CalculatorApi",
+                                "awslogs-region": "ap-southeast-2",
+                                "awslogs-stream-prefix": "ecs"
+                            }
+                        },
+                        "Environment" : [ {
+                            "Name" : "ASPNETCORE_ENVIRONMENT",
+                            "Value" : "Production"
+                        } ]
+                    }
+                ],
+                "Cpu": 256,
+                "Memory": 512,
+                "NetworkMode": "awsvpc",
+                "RequiresCompatibilities": ["FARGATE"],
+                "TaskRoleArn": "ecs_execution_CalculatorApi-0",
+                "ExecutionRoleArn": "ecsTaskExecutionRole",
+                "Tags": [
+                    {
+                        "Key": "created_by",
+                        "Value": "CloudFormation"
+                    }
+                ]
+            }
+        },
+        "SERVICE": {
+            "Type": "AWS::ECS::Service",
+            "DependsOn": ["ECSTASK", "FARGATECLUSTER", "SUBNETFARGATE1", "SUBNETFARGATE2", "SGFARGATE", "FARGATEHTTPSLISTENER", "FARGATEHTTPLISTENER"],
+            "Properties": {
+                "Cluster" : "Cluster-CF",
+                "DeploymentConfiguration" : {
+                    "MaximumPercent": 200,
+                    "MinimumHealthyPercent": 50
+                },
+                "DeploymentController" : {"Type": "ECS"},
+                "DesiredCount" : 1,
+                "LaunchType" : "FARGATE",
+                "LoadBalancers" : [
+                    {
+                        "ContainerName" : "calculator-api",
+                        "ContainerPort" : 80,
+                        "TargetGroupArn" : { "Ref" : "FARGATETARGETGROUP" }
+                    }
+                ],
+                "NetworkConfiguration" : {
+                    "AwsvpcConfiguration": {
+                        "AssignPublicIp" : "ENABLED",
+                        "Subnets": [
+                            {
+                                "Ref": "SUBNETFARGATE1"
+                            },
+                            {
+                                "Ref": "SUBNETFARGATE2"
+                            }
+                        ],
+                        "SecurityGroups": [{"Ref": "SGFARGATE"}]
+                    }
+                },
+                "SchedulingStrategy" : "REPLICA",
+                "ServiceName" : "Service-CF",
+                "TaskDefinition" : {"Ref": "ECSTASK"}
+            }
+        },
+        "SGFARGATELOADBALANCER": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DependsOn": ["VPCFARGATE"],
+            "Properties": {
+                "GroupDescription" : "Fargate Security Group",
+                "GroupName" : "Fargate-SG-LoadBalancer",
+                "SecurityGroupIngress" : [
+                    {
+                        "CidrIp" : "0.0.0.0/0",
+                        "Description" : "Allow HTTP traffic on port 80",
+                        "FromPort" : 80,
+                        "IpProtocol" : "tcp",
+                        "ToPort" : 80
+                    },{
+                        "CidrIp": "0.0.0.0/0",
+                        "Description": "Allow HTTPS traffic on port 443",
+                        "FromPort": 443,
+                        "IpProtocol": "tcp",
+                        "ToPort": 443
+                    }
+                ],
+                "VpcId" : {"Ref": "VPCFARGATE"}
+            }
+        },
+        "FARGATELOADBALANCER": {
+            "Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "DependsOn" : ["FARGATETARGETGROUP"],
+            "Properties" : {
+                "IpAddressType" : "ipv4",
+                "Name" : "Fargate-Load-Balancer",
+                "Scheme" : "internet-facing",
+                "SecurityGroups" : [{"Ref": "SGFARGATELOADBALANCER"}],
+                "Subnets" : [ { "Ref": "SUBNETFARGATE1" }, { "Ref": "SUBNETFARGATE2" } ],
+                "Tags" : [
+                    {
+                        "Key": "created_by",
+                        "Value": "CloudFormation"
+                    }
+                ],
+                "Type" : "application"
+            }
+        },
+        "FARGATEHTTPSLISTENER": {
+            "Type" : "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties" : {
+                "Certificates" : [ "arn:aws:acm:ap-southeast-2:322767926738:certificate/a9575109-9c1b-4f60-a4a1-fbeb040102e9" ],
+                "DefaultActions" : [
+                    {
+                        "Order" : 1,
+                        "TargetGroupArn" : {"Ref" : "FARGATETARGETGROUP"},
+                        "Type" : "forward"
+                    }
+                ],
+                "LoadBalancerArn" : { "Ref" : "FARGATELOADBALANCER" },
+                "Port" : 443,
+                "Protocol" : "HTTPS",
+                "SslPolicy" : "ELBSecurityPolicy-2016-08"
+            }
+        },
+        "FARGATEHTTPLISTENER": {
+            "Type" : "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties" : {
+                "DefaultActions" : [
+                    {
+                        "Order" : 1,
+                        "RedirectConfig" : {
+                            "Host" : "#{host}",
+                            "Path" : "/#{path}",
+                            "Port" : "443",
+                            "Protocol" : "HTTPS",
+                            "Query" : "#{query}",
+                            "StatusCode" : "HTTP_301"
+                        },
+                        "Type" : "redirect"
+                    }
+                ],
+                "LoadBalancerArn" : { "Ref" : "FARGATELOADBALANCER" },
+                "Port" : 80,
+                "Protocol" : "HTTP"
+            }
+        },
+        "FARGATETARGETGROUP" : {
+            "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties" : {
+                "HealthCheckPath" : "/health",
+                "Name" : "Fargate-Target-Group",
+                "Port" : "80",
+                "Protocol" : "HTTP",
+                "TargetType" : "ip",
+                "VpcId" : {"Ref": "VPCFARGATE"}
+            }
+        }
+    }
+}

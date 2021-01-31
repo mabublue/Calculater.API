@@ -1,4 +1,5 @@
 ﻿using Calculator.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 
@@ -14,6 +15,7 @@ namespace Calculator.Api.Controllers
         // POST <CalculatorController>/Add
         [HttpPost]
         [Route("Add")]
+        [Authorize]
         public ObjectResult Add(decimal value1, decimal value2)
         {
             decimal returnValue;
@@ -31,6 +33,7 @@ namespace Calculator.Api.Controllers
         // POST <CalculatorController>/Subtract
         [HttpPost]
         [Route("Subtract")]
+        [Authorize]
         public ObjectResult Subtract(decimal value1, decimal value2)
         {
             decimal returnValue;
@@ -48,6 +51,7 @@ namespace Calculator.Api.Controllers
         // POST <CalculatorController>/Multiply
         [HttpPost]
         [Route("Multiply")]
+        [Authorize]
         public ObjectResult Multiply(decimal value1, decimal value2)
         {
             decimal returnValue;
@@ -65,6 +69,7 @@ namespace Calculator.Api.Controllers
         // POST <CalculatorController>/Divide
         [HttpPost]
         [Route("Divide")]
+        [Authorize]
         public ObjectResult Divide(decimal value1, decimal value2)
         {
             decimal returnValue;
@@ -78,7 +83,5 @@ namespace Calculator.Api.Controllers
             }
             return new OkObjectResult(returnValue);
         }
-
-
     }
 }

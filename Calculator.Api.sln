@@ -3,9 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30914.41
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Calculator.Api", "Calculator.Api\Calculator.Api.csproj", "{13B327A2-C12A-49C7-8F3B-68A27E6866A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Calculator.Api", "Calculator.Api\Calculator.Api.csproj", "{13B327A2-C12A-49C7-8F3B-68A27E6866A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Calulator.Tests", "Calulator.Tests\Calulator.Tests.csproj", "{D4F25A44-5049-49CF-975C-CB5172899487}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Calulator.Tests", "Calulator.Tests\Calulator.Tests.csproj", "{D4F25A44-5049-49CF-975C-CB5172899487}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8C9BA1EA-0E60-428B-AE1A-3FCFC20D4DA6}"
+	ProjectSection(SolutionItems) = preProject
+		buildspec.yml = buildspec.yml
+		Cloudfromation\Cloudformation-ECS-Cluster.yaml = Cloudfromation\Cloudformation-ECS-Cluster.yaml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
