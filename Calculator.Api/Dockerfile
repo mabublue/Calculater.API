@@ -7,9 +7,9 @@ EXPOSE 443
 
 #See https://github.com/NuGet/Home/issues/10491 for image use. Fixes deployment issue with Nuget Certificates
 FROM mcr.microsoft.com/dotnet/sdk:5.0.102-ca-patch-buster-slim AS build
-WORKDIR /src
-COPY ["Calculator.Api/Calculator.Api.csproj", "Calculator.Api/"]
-RUN dotnet restore "Calculator.Api/Calculator.Api.csproj"
+WORKDIR /src/Calculator.Api
+COPY ["Calculator.Api.csproj", "/src/Calculator.Api/"]
+RUN dotnet restore "/src/Calculator.Api/Calculator.Api.csproj"
 COPY . .
 WORKDIR "/src/Calculator.Api"
 RUN dotnet build "Calculator.Api.csproj" -c Release -o /app/build
